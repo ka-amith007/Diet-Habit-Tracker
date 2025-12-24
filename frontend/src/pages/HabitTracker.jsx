@@ -64,7 +64,7 @@ export default function HabitTracker() {
     const days = eachDayOfInterval({
         start: startOfMonth(currentDate),
         end: endOfMonth(currentDate)
-    }).slice(0, 14); // Show 14 days for preview
+    }); // Show full month
 
     return (
         <div className="space-y-6 animate-fade-in">
