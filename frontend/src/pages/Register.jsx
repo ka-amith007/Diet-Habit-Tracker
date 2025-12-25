@@ -43,7 +43,24 @@ export default function Register() {
             });
             navigate('/dashboard');
         } catch (err) {
-            setError(err.response?.data?.message || 'Failed to register');
+            console.error('Registration failed:', {
+                message: err?.message,
+                status: err?.response?.status,
+                data: err?.response?.data
+            });
+
+            const data = err?.response?.data;
+            const backendMessage =
+                (typeof data?.message === 'string' && data.message.trim())
+                    ? data.message
+                    : Array.isArray(data?.errors)
+                        ? data.errors.map((e) => e?.msg || e?.message).filter(Boolean).join(', ')
+                        : '';
+
+            setError(
+                backendMessage ||
+                'Unable to register right now. Please verify VITE_API_BASE_URL is set correctly and the backend is reachable.'
+            );
         } finally {
             setLoading(false);
         }

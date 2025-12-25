@@ -4,8 +4,6 @@ import { ThemeProvider } from './context/ThemeContext';
 import { NotificationProvider } from './context/NotificationContext';
 
 // Pages
-import Login from './pages/Login';
-import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import DietTracker from './pages/DietTracker';
 import HabitTracker from './pages/HabitTracker';
@@ -17,7 +15,7 @@ import Layout from './components/Layout';
 
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {
-    const { isAuthenticated, loading } = useAuth();
+    const { loading } = useAuth();
 
     if (loading) {
         return (
@@ -27,7 +25,9 @@ const ProtectedRoute = ({ children }) => {
         );
     }
 
-    return isAuthenticated ? children : <Navigate to="/login" />;
+    // Login page removed: allow app shell to render.
+    // AuthContext dev auto-login will populate user/token when backend is reachable.
+    return children;
 };
 
 function AppRoutes() {
@@ -35,9 +35,6 @@ function AppRoutes() {
 
     return (
         <Routes>
-            <Route path="/login" element={isAuthenticated ? <Navigate to="/dashboard" /> : <Login />} />
-            <Route path="/register" element={isAuthenticated ? <Navigate to="/dashboard" /> : <Register />} />
-
             <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
                 <Route index element={<Navigate to="/dashboard" />} />
                 <Route path="dashboard" element={<Dashboard />} />
@@ -46,6 +43,8 @@ function AppRoutes() {
                 <Route path="analytics" element={<Analytics />} />
                 <Route path="profile" element={<Profile />} />
             </Route>
+
+            <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
     );
 }

@@ -27,7 +27,26 @@ connectDB();
 const app = express();
 
 // Middleware
-app.use(cors());
+const allowedOrigins = new Set([
+    'http://localhost:5173',
+    'http://127.0.0.1:5173',
+    'https://diet-habit-tracker-5xd5.vercel.app'
+]);
+
+const corsOptions = {
+    origin: (origin, callback) => {
+        // Allow non-browser clients (curl/postman) with no origin
+        if (!origin) return callback(null, true);
+        if (allowedOrigins.has(origin)) return callback(null, true);
+        return callback(new Error(`CORS blocked for origin: ${origin}`));
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
+};
+
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -51,6 +70,9 @@ app.get('/api/health', (req, res) => {
 // Error handler
 app.use((err, req, res, next) => {
     console.error(err.stack);
+    if (typeof err?.message === 'string' && err.message.startsWith('CORS blocked')) {
+        return res.status(403).json({ message: err.message });
+    }
     res.status(500).json({ message: err.message || 'Server Error' });
 });
 

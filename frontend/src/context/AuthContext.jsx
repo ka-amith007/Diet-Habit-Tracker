@@ -24,6 +24,45 @@ export const AuthProvider = ({ children }) => {
         setLoading(false);
     }, []);
 
+    // Optional: auto-login for local dev/demo so the UI loads without the login page.
+    useEffect(() => {
+        const shouldAutoLogin = Boolean(import.meta.env.DEV);
+        if (!shouldAutoLogin) return;
+        if (user) return;
+
+        let cancelled = false;
+
+        const ensureGuestUser = async () => {
+            setLoading(true);
+            try {
+                const email = 'guest@diettracker.local';
+                const password = 'Password123';
+
+                try {
+                    const userData = await authService.login({ email, password });
+                    if (!cancelled) setUser(userData);
+                } catch (loginErr) {
+                    // If user doesn't exist yet, register then login.
+                    if (loginErr?.response?.status === 401) {
+                        await authService.register({ name: 'Guest', email, password });
+                        const userData = await authService.login({ email, password });
+                        if (!cancelled) setUser(userData);
+                    } else {
+                        // Don’t hard-fail app load; allow user to navigate manually if needed.
+                        console.error('Auto-login failed:', loginErr);
+                    }
+                }
+            } finally {
+                if (!cancelled) setLoading(false);
+            }
+        };
+
+        ensureGuestUser();
+        return () => {
+            cancelled = true;
+        };
+    }, [user]);
+
     const login = async (credentials) => {
         const userData = await authService.login(credentials);
         setUser(userData);
