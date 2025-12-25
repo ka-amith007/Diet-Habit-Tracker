@@ -16,25 +16,24 @@ export const AuthProvider = ({ children }) => {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        // Check if user is logged in from localStorage
+        // Check if user is logged in
         const storedUser = authService.getCurrentUser();
         if (storedUser) {
             setUser(storedUser);
         }
-        // CRITICAL: Always set loading to false after checking storage
         setLoading(false);
     }, []);
 
-    // Optional: auto-login for local dev ONLY (prevents blank page on Vercel)
+    // Optional: auto-login for local dev/demo so the UI loads without the login page.
     useEffect(() => {
-        // Only enable on localhost, NEVER on production/Vercel
-        const isLocalDev = import.meta.env.DEV && window.location.hostname === 'localhost';
-        if (!isLocalDev) return;
+        const shouldAutoLogin = Boolean(import.meta.env.DEV);
+        if (!shouldAutoLogin) return;
         if (user) return;
 
         let cancelled = false;
 
         const ensureGuestUser = async () => {
+            setLoading(true);
             try {
                 const email = 'guest@diettracker.local';
                 const password = 'Password123';
@@ -43,23 +42,25 @@ export const AuthProvider = ({ children }) => {
                     const userData = await authService.login({ email, password });
                     if (!cancelled) setUser(userData);
                 } catch (loginErr) {
+                    // If user doesn't exist yet, register then login.
                     if (loginErr?.response?.status === 401) {
                         await authService.register({ name: 'Guest', email, password });
                         const userData = await authService.login({ email, password });
                         if (!cancelled) setUser(userData);
                     } else {
-                        console.warn('Auto-login skipped');
+                        // Don’t hard-fail app load; allow user to navigate manually if needed.
+                        console.error('Auto-login failed:', loginErr);
                     }
                 }
-            } catch (error) {
-                // Never block app - fail silently
-                console.warn('Auto-login failed');
+            } finally {
+                if (!cancelled) setLoading(false);
             }
         };
 
-        // Run in background without blocking app load
         ensureGuestUser();
-        return () => { cancelled = true; };
+        return () => {
+            cancelled = true;
+        };
     }, [user]);
 
     const login = async (credentials) => {
