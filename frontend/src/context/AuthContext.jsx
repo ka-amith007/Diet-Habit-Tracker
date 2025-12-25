@@ -16,50 +16,62 @@ export const AuthProvider = ({ children }) => {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        // Check if user is logged in from localStorage
-        const storedUser = authService.getCurrentUser();
-        if (storedUser) {
-            setUser(storedUser);
+        try {
+            // Check if user is logged in from localStorage
+            const storedUser = authService.getCurrentUser();
+            if (storedUser) {
+                setUser(storedUser);
+            }
+        } catch (error) {
+            console.error('Error loading user:', error);
+        } finally {
+            // ALWAYS set loading to false, no matter what
+            setLoading(false);
         }
-        // CRITICAL: Always set loading to false after checking storage
-        setLoading(false);
+
+        // Safety timeout: force loading to false after 1 second max
+        const timeout = setTimeout(() => {
+            setLoading(false);
+        }, 1000);
+
+        return () => clearTimeout(timeout);
     }, []);
 
-    // Optional: auto-login for local dev ONLY (prevents blank page on Vercel)
+    // Optional: auto-login for local dev ONLY
     useEffect(() => {
-        // Only enable on localhost, NEVER on production/Vercel
-        const isLocalDev = import.meta.env.DEV && window.location.hostname === 'localhost';
-        if (!isLocalDev) return;
-        if (user) return;
+        try {
+            // Only enable on localhost, NEVER on production/Vercel
+            const isLocalDev = import.meta.env.DEV && window.location.hostname === 'localhost';
+            if (!isLocalDev) return;
+            if (user) return;
 
-        let cancelled = false;
+            let cancelled = false;
 
-        const ensureGuestUser = async () => {
-            try {
-                const email = 'guest@diettracker.local';
-                const password = 'Password123';
-
+            const ensureGuestUser = async () => {
                 try {
+                    const email = 'guest@diettracker.local';
+                    const password = 'Password123';
+
                     const userData = await authService.login({ email, password });
                     if (!cancelled) setUser(userData);
                 } catch (loginErr) {
-                    if (loginErr?.response?.status === 401) {
-                        await authService.register({ name: 'Guest', email, password });
-                        const userData = await authService.login({ email, password });
-                        if (!cancelled) setUser(userData);
-                    } else {
-                        console.warn('Auto-login skipped');
+                    try {
+                        if (loginErr?.response?.status === 401) {
+                            await authService.register({ name: 'Guest', email, password });
+                            const userData = await authService.login({ email, password });
+                            if (!cancelled) setUser(userData);
+                        }
+                    } catch (err) {
+                        // Silent fail
                     }
                 }
-            } catch (error) {
-                // Never block app - fail silently
-                console.warn('Auto-login failed');
-            }
-        };
+            };
 
-        // Run in background without blocking app load
-        ensureGuestUser();
-        return () => { cancelled = true; };
+            ensureGuestUser();
+            return () => { cancelled = true; };
+        } catch (error) {
+            // Never crash the app
+        }
     }, [user]);
 
     const login = async (credentials) => {
